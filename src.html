@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>3D Reactive Sound Visualizer with MP3 Input</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/processing.js/1.6.0/processing.min.js"></script>
+	<script type="text/processing" data-processing-target="mycanvas">
+
+		// Define variables
+		FFT fft;
+		float[] spectrum;
+		int numBands = 128;
+		float[] bands = new float[numBands];
+		float[] smoothedBands = new float[numBands];
+		float[] peakBands = new float[numBands];
+		float[] lastPeakBands = new float[numBands];
+		float decayRate = 0.005;
+		float minBrightness = 50;
+		float maxBrightness = 255;
+		float minLineLength = 10;
+		float maxLineLength = 200;
+		float noiseScale = 0.005;
+		float angleX = 0.0;
+		float angleY = 0.0;
+		float angleZ = 0.0;
+		float zoom = 400.0;
+		float xNoiseOffset = 0.0;
+		float yNoiseOffset = 100.0;
+		float zNoiseOffset = 200.0;
+		color[] colors = { 
+			color(255, 0, 0), 
+			color(0, 255, 0), 
+			color(0, 0, 255), 
+			color(255, 255, 0), 
+			color(255, 0, 255), 
+			color(0, 255, 255) 
+		};
+
+		// Load MP3 file
+		SoundFile soundFile;
+
+		// Setup function
+		void setup() {
+			size(800, 600, P3D);
+			smooth(8);
+			colorMode(RGB, 255, 255, 255, 100);
+			strokeWeight(1);
+			strokeCap(ROUND);
+			strokeJoin(ROUND);
+			fft = new FFT(this, numBands);
+			soundFile = new SoundFile(this, 'your_file.mp3');
+			soundFile.play();
+		}
+
+		// Draw function
+		void draw() {
+			background(0);
+			translate(width/2, height/2, -zoom);
+			rotateX(angleX);
+			rotateY(angleY);
+			rotateZ(angleZ);
+			spectrum = fft.analyze();
+			for (int i = 0; i < numBands; i++) {
+				float band = spectrum[i];
+				float smoothedBand = lerp(smoothedBands[i], band, 0.1);
+				smoothedBands[i] = smoothedBand;
+				float peakBand = max(smoothedBand, peakBands[i] - decayRate);
+				peakBands[i] = peakBand;
+				float lastPeakBand = lastPeakBands[i];
+				float brightness = map(peakBand, 0, 255, minBrightness, maxBrightness);
+				float lineLength = map(peakBand, 0, 255, minLineLength, maxLineLength);
+				float xNoise = map(noise(xNoiseOffset), 0, 1, -1, 1);
+				float yNoise = map(noise(yNoiseOffset), 0, 1, -1, 1);
+				float zNoise = map(noise(zNoiseOffset), 0, 1, -1, 1);
+				float x1 = (xNoise + i) * noiseScale * lineLength;
+				float y1 = (yNoise + i) * noiseScale * lineLength;
+				float z1 = (zNoise + i) * noiseScale * lineLength;
+				float x2 = (xNoise + i) * noiseScale * lastPeakBand;
+				float y2 = (yNoise + i) * noiseScale * lastPeakBand;
+				float z2 = (zNoise + i) * noiseScale * lastPeakBand;
+				stroke(colors[i % colors.length]);
+				line(x1, y1, z1, x2, y2, z2);
+				lastPeakBands[i] = peakBand;
+			}
+			xNoiseOffset += 0.01;
+			yNoiseOffset += 0.01;
+			zNoiseOffset += 0.01;
+			angleX += 0.01;
+			angleY += 0.01;
+			angleZ += 0.01;
+		}
+
+	</script>
+</head>
+<body>
+	<canvas id="mycanvas"></canvas>
+</body>
+</html>
+
